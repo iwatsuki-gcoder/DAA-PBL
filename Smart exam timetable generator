@@ -1,0 +1,208 @@
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+const int MAX = 100;
+
+int n;
+string subjects[MAX];
+int students[MAX];
+int conflict[MAX][MAX];
+int slot[MAX];
+
+// Rooms
+int rooms;
+string roomNames[MAX];
+int roomCapacity[MAX];
+
+// Teachers
+int teacherCount;
+string teachers[MAX];
+int teacherAssigned[MAX];
+
+// -----------------------------
+// Load Subjects
+// -----------------------------
+void loadSubjects(string filename) {
+    ifstream file(filename);
+    file >> n;
+
+    for (int i = 0; i < n; i++) {
+        file >> subjects[i] >> students[i];
+    }
+
+    file.close();
+}
+
+// -----------------------------
+// Load Conflict Matrix
+// -----------------------------
+void loadConflictMatrix(string filename) {
+    ifstream file(filename);
+    int temp;
+    file >> temp;
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            file >> conflict[i][j];
+
+    file.close();
+}
+
+// -----------------------------
+// Load Rooms
+// -----------------------------
+void loadRooms(string filename) {
+    ifstream file(filename);
+    file >> rooms;
+
+    for (int i = 0; i < rooms; i++)
+        file >> roomNames[i] >> roomCapacity[i];
+
+    file.close();
+}
+
+// -----------------------------
+// Load Teachers
+// -----------------------------
+void loadTeachers(string filename) {
+    ifstream file(filename);
+    file >> teacherCount;
+
+    for (int i = 0; i < teacherCount; i++)
+        file >> teachers[i];
+
+    file.close();
+}
+
+// -----------------------------
+// Check Subject Conflict
+// -----------------------------
+bool isSafe(int subject, int s) {
+    for (int i = 0; i < n; i++) {
+        if (conflict[subject][i] && slot[i] == s)
+            return false;
+    }
+    return true;
+}
+
+// -----------------------------
+// Backtracking Slot Assignment
+// -----------------------------
+bool solveSlots(int subject, int maxSlots) {
+    if (subject == n)
+        return true;
+
+    for (int s = 0; s < maxSlots; s++) {
+        if (isSafe(subject, s)) {
+            slot[subject] = s;
+
+            if (solveSlots(subject + 1, maxSlots))
+                return true;
+
+            slot[subject] = -1;
+        }
+    }
+    return false;
+}
+
+// -----------------------------
+// Find Minimum Slots
+// -----------------------------
+int generateSlots() {
+    for (int i = 0; i < n; i++)
+        slot[i] = -1;
+
+    for (int s = 1; s <= n; s++) {
+        if (solveSlots(0, s))
+            return s;
+    }
+    return n;
+}
+
+// -----------------------------
+// Check Teacher Safe
+// -----------------------------
+bool isTeacherSafe(int subject, int t) {
+    for (int i = 0; i < subject; i++) {
+        if (slot[i] == slot[subject] && teacherAssigned[i] == t)
+            return false;
+    }
+    return true;
+}
+
+// -----------------------------
+// Assign Teachers (Backtracking)
+// -----------------------------
+bool assignTeachers(int subject) {
+    if (subject == n)
+        return true;
+
+    for (int t = 0; t < teacherCount; t++) {
+        if (isTeacherSafe(subject, t)) {
+            teacherAssigned[subject] = t;
+
+            if (assignTeachers(subject + 1))
+                return true;
+
+            teacherAssigned[subject] = -1;
+        }
+    }
+    return false;
+}
+
+// -----------------------------
+// Display Final Output
+// -----------------------------
+void display(int totalSlots) {
+    ofstream out("Final_Timetable.txt");
+
+    cout << "\n===== FINAL TIMETABLE =====\n";
+    out << "===== FINAL TIMETABLE =====\n";
+
+    for (int s = 0; s < totalSlots; s++) {
+        cout << "\n--- Slot " << s + 1 << " ---\n";
+        out << "\n--- Slot " << s + 1 << " ---\n";
+
+        int roomIndex = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (slot[i] == s) {
+                cout << "Subject: " << subjects[i]
+                     << " | Teacher: " << teachers[teacherAssigned[i]]
+                     << " | Room: " << roomNames[roomIndex % rooms]
+                     << endl;
+
+                out << "Subject: " << subjects[i]
+                    << " | Teacher: " << teachers[teacherAssigned[i]]
+                    << " | Room: " << roomNames[roomIndex % rooms]
+                    << endl;
+
+                roomIndex++;
+            }
+        }
+    }
+
+    out.close();
+}
+
+// -----------------------------
+int main() {
+    loadSubjects("Subject_Enrollment_Summary.csv");
+    loadConflictMatrix("Conflict_Matrix_150_Students.csv");
+    loadRooms("Room_Dataset.csv");
+    loadTeachers("Teachers.txt");
+
+    int totalSlots = generateSlots();
+
+    cout << "Minimum Slots: " << totalSlots << endl;
+
+    if (!assignTeachers(0)) {
+        cout << "Teacher assignment not possible!\n";
+        return 0;
+    }
+
+    display(totalSlots);
+
+    return 0;
+}
